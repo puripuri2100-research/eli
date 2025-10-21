@@ -6,5 +6,10 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.100"
 clap = { version = "4.5.49", features = ["derive"] }
+clap-verbosity-flag = { version = "3.0.4", features = ["tracing"] }
 japanese_law_xml_schema = "5.0.3"
+oxrdf = "0.3.1"
 tokio = { version = "1.48.0", features = ["full"] }
+tokio-stream = "0.1.17"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.20"
