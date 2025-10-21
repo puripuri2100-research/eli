@@ -1,7 +1,19 @@
+/// 法令等の公開先
+pub enum Published {
+  /// URIがある場合
+  Uri(String),
+  /// URIが存在しない場合の文字情報
+  Other(String),
+  /// 非公開
+  Private,
+  /// 不明
+  NoInformation,
+}
+
 /// European Legislation Identifier(ELI)を実装するトレイト
 pub trait Eli {
   fn eli_uri(&self) -> String;
-  fn web_link(&self) -> String;
+  fn published(&self) -> Published;
 }
 
 /// ELIで使用されるオントロジー
