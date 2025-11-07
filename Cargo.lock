@@ -211,8 +211,10 @@ dependencies = [
  "anyhow",
  "clap",
  "clap-verbosity-flag",
+ "japanese_law_id",
  "japanese_law_xml_schema",
  "oxrdf",
+ "regex",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -268,10 +270,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
-name = "japanese_law_xml_schema"
-version = "5.0.3"
+name = "japanese_law_id"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfe58913b7d5e8daecff503dd6611f66b477c23defb559a742222f432cab5d2e"
+checksum = "ba3824fd4dd1fb44d23f6a93d42fd3e6a9cc8e65d1e64bcf64d616bcf49e694e"
+dependencies = [
+ "kansuji",
+ "regex",
+]
+
+[[package]]
+name = "japanese_law_xml_schema"
+version = "5.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bd7f196e63c14a14552624044413e24581cde2c26f765345e1a6d0434f3d3da"
 dependencies = [
  "kansuji",
  "koyomi",

@@ -1,3 +1,5 @@
+pub use oxrdf::{NamedNode, Triple};
+
 /// 法令等の公開先
 pub enum Published {
   /// URIがある場合
@@ -12,7 +14,9 @@ pub enum Published {
 
 /// European Legislation Identifier(ELI)を実装するトレイト
 pub trait Eli {
+  /// ELIのリンクを生成する
   fn eli_uri(&self) -> String;
+  /// 公開されているページを示す
   fn published(&self) -> Published;
 }
 
@@ -407,6 +411,19 @@ impl EliOntology {
       }
       Self::TitleShort => String::from("http://data.europa.eu/eli/ontology#title_short"),
       Self::VersionDate => String::from("http://data.europa.eu/eli/ontology#version_date"),
+    }
+  }
+
+  pub fn named_node(&self) -> NamedNode {
+    let uri = self.uri();
+    NamedNode::new(uri).unwrap()
+  }
+
+  pub fn triple<E: Eli>(&self, subject: E, object: E) -> Triple {
+    Triple {
+      subject: NamedNode::new(subject.eli_uri()).unwrap().into(),
+      predicate: NamedNode::new(self.uri()).unwrap(),
+      object: NamedNode::new(object.eli_uri()).unwrap().into(),
     }
   }
 }

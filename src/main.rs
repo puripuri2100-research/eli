@@ -1,9 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
 
-pub mod eli;
-pub mod law;
-
 #[derive(Clone, Parser)]
 #[clap(author, version, about)]
 struct Arg {
