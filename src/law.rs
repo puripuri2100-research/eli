@@ -1,4 +1,4 @@
-use crate::eli;
+use crate::eli::{self, EliOntology};
 use anyhow::Result;
 use japanese_law_id::Date;
 use japanese_law_xml_schema::{
@@ -9,6 +9,7 @@ use japanese_law_xml_schema::{
     with_number_article_list_from_main_provision,
   },
 };
+pub use oxrdf::Triple;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Law {
@@ -108,7 +109,27 @@ impl Law {
       .map(|num| format!("paragraph{}", num.num_str()))
   }
 
-  pub fn children(&self) {}
+  // 番号を検索して親要素を生成する
+  pub fn parent(&self) -> Self {
+    let mut parent = self.clone();
+    if self.paragraph_number.is_some() {
+      parent.paragraph_number = None;
+      parent.paragraph_text = None;
+    } else if self.article_number.is_some() {
+      parent.article_number = None;
+    } else if self.division_number.is_some() {
+      parent.division_number = None;
+    } else if self.subsection_number.is_some() {
+      parent.subsection_number = None
+    } else if self.section_number.is_some() {
+      parent.section_number = None;
+    } else if self.chapter_number.is_some() {
+      parent.chapter_number = None;
+    } else if self.part_number.is_some() {
+      parent.part_number = None;
+    }
+    parent
+  }
 
   /// `#Mp-Pa_2-Ch_40`のような，条項に振られているIDを生成する．
   /// 具体的な例: <https://laws.e-gov.go.jp/law/129AC0000000089#Mp-Pa_3-Ch_1-Se_2-Ss_3-Di_4>
@@ -192,21 +213,26 @@ pub fn egov_xml_parse(
   law_id: String,
   law_type: LawType,
   patch_id: Option<String>,
-) -> Result<Vec<Law>> {
+) -> Result<(Vec<Law>, Vec<Triple>)> {
   let law_data = japanese_law_xml_schema::parse_xml(buf)?;
   let mut law = Law::new(date, law_id, law_type);
   if let Some(patch_id) = patch_id {
     law.set_patch_id(patch_id);
   }
-  let mut v = Vec::new();
-  v.push(law.clone());
+  let mut v_law = Vec::new();
+  v_law.push(law.clone());
+
+  let mut v_triple = Vec::new();
 
   // 編番号・章番号・条番号などを登録
   let toc_list = toc_list_from_main_provision(&law_data.law_body.main_provision);
   for toc in toc_list.iter() {
     let mut law_tmp = law.clone();
     law_tmp.set_numbers_from_toc(toc);
-    v.push(law_tmp);
+    v_law.push(law_tmp.clone());
+    let parent = law_tmp.parent();
+    v_triple.push(EliOntology::HasPart.triple(parent.clone(), law_tmp.clone()));
+    v_triple.push(EliOntology::IsPartOf.triple(law_tmp.clone(), parent.clone()));
   }
 
   // 段落番号を登録する
@@ -216,9 +242,12 @@ pub fn egov_xml_parse(
     let mut law_tmp = law.clone();
     law_tmp.set_numbers(a);
     for para in a.get_article().paragraph.iter() {
-      law_tmp.set_paragraph_number(para.num.clone());
-      law_tmp.set_paragraph_text(text_from_paragraph_list(std::slice::from_ref(para)));
-      v.push(law_tmp.clone());
+      let mut law_tmp2 = law_tmp.clone();
+      law_tmp2.set_paragraph_number(para.num.clone());
+      law_tmp2.set_paragraph_text(text_from_paragraph_list(std::slice::from_ref(para)));
+      v_law.push(law_tmp2.clone());
+      v_triple.push(EliOntology::HasPart.triple(law_tmp.clone(), law_tmp2.clone()));
+      v_triple.push(EliOntology::IsPartOf.triple(law_tmp2.clone(), law_tmp.clone()));
     }
   }
   for para_list in paragraphs.iter() {
@@ -226,8 +255,10 @@ pub fn egov_xml_parse(
       let mut law_tmp = law.clone();
       law_tmp.set_paragraph_number(para.num.clone());
       law_tmp.set_paragraph_text(text_from_paragraph_list(std::slice::from_ref(para)));
-      v.push(law_tmp);
+      v_law.push(law_tmp.clone());
+      v_triple.push(EliOntology::HasPart.triple(law.clone(), law_tmp.clone()));
+      v_triple.push(EliOntology::IsPartOf.triple(law_tmp.clone(), law.clone()));
     }
   }
-  Ok(v)
+  Ok((v_law, v_triple))
 }
