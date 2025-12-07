@@ -120,9 +120,9 @@ async fn run(args: Arg) -> Result<()> {
         patch_id = Some(s.to_string())
       }
     }
-    let year = date_s[0..3].parse::<usize>()?;
-    let month = date_s[4..5].parse::<usize>()?;
-    let day = date_s[5..6].parse::<usize>()?;
+    let year = date_s[0..4].parse::<usize>()?;
+    let month = date_s[4..6].parse::<usize>()?;
+    let day = date_s[6..8].parse::<usize>()?;
     let xml_path = Path::new(&args.egov_folder)
       .join(&law_id_and_patch_id)
       .join(&law_id_and_patch_id)
