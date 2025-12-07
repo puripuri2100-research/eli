@@ -581,7 +581,7 @@ fn find_law_name(
   // - 同一の法令を指し示す法令名のendと法令番号のstartの差が1
   // - 当該endと当該startの間の文字が'（'
   // 該当したときに法令番号側を削除する
-  resolve_name_and_number(&mut lst, text);
+  lst = resolve_name_and_number(&lst, text);
 
   // 最終的な法令名探索結果
   lst
@@ -589,7 +589,7 @@ fn find_law_name(
 
 /// 「内閣は、消防施設強化促進法（昭和二十八年法律第八十七号）第三条の規定に基き、この政令を制定する。」
 /// のような文における，法令名と法令番号の重複を解消するために，法令番号を削除する．
-fn resolve_name_and_number(lst: &mut Vec<FindLawName>, text: &str) {
+fn resolve_name_and_number(lst: &[FindLawName], text: &str) -> Vec<FindLawName> {
   let chars = text.chars().collect::<Vec<char>>();
   // 削除対象
   let mut remove_index: Vec<usize> = Vec::new();
@@ -615,15 +615,18 @@ fn resolve_name_and_number(lst: &mut Vec<FindLawName>, text: &str) {
       }
     }
   }
-  for i in remove_index.iter() {
-    lst.remove(*i);
-  }
+  lst
+    .iter()
+    .enumerate()
+    .filter(|(i, _)| !remove_index.contains(i))
+    .map(|(_, v)| v.clone())
+    .collect::<Vec<_>>()
 }
 
 #[test]
 fn check_resolve_name_and_number() {
   let s = "陸上交通事業調整法（以下「法」という。）第二条第一項の政令で定める審議会等は、交通政策審議会とする。ただし、法第二条第一項の規定に基づき、国土交通大臣が都市計画法（昭和四十三年法律第百号）第四条第二項に規定する都市計画区域内において調整の区域を決定しようとするときは、当該調整の区域について交通政策審議会及び社会資本整備審議会とする。";
-  let mut v = vec![
+  let v = vec![
     FindLawName {
       position: Position { start: 0, end: 25 },
       match_string: String::from("陸上交通事業調整法"),
@@ -670,9 +673,9 @@ fn check_resolve_name_and_number() {
     },
   ];
 
-  resolve_name_and_number(&mut v, s);
+  let v2 = resolve_name_and_number(&v, s);
 
-  let v2 = vec![
+  let v3 = vec![
     FindLawName {
       position: Position { start: 0, end: 25 },
       match_string: String::from("陸上交通事業調整法"),
@@ -707,7 +710,7 @@ fn check_resolve_name_and_number() {
       )),
     },
   ];
-  assert_eq!(v, v2)
+  assert_eq!(v2, v3)
 }
 
 // 略称の定義を検索
