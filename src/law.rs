@@ -596,6 +596,7 @@ fn resolve_name_and_number(lst: &mut Vec<FindLawName>, text: &str) {
   let mut iter = lst.iter().enumerate().peekable();
   while let Some((i, law_name)) = iter.next() {
     if let Some(&(j, next_law_name)) = iter.peek() {
+      // 順序の保証がないため，どっちであっても対応できるようにする
       let (i2, law1, law2) = if law_name.position.end < next_law_name.position.start {
         (j, law_name, next_law_name)
       } else {
