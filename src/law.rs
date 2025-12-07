@@ -13,7 +13,7 @@ pub use oxrdf::Triple;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, collections::HashMap};
-use tracing::{info, trace};
+use tracing::trace;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Law {
@@ -575,7 +575,140 @@ fn find_law_name(
       }
     }
   }
+  // 「内閣は、消防施設強化促進法（昭和二十八年法律第八十七号）第三条の規定に基き、この政令を制定する。」
+  // のような文における，法令番号の抽出を抑制したい．
+  // 具体的には，次のパターンに該当するかどうかをチェックする．
+  // - 同一の法令を指し示す法令名のendと法令番号のstartの差が1
+  // - 当該endと当該startの間の文字が'（'
+  // 該当したときに法令番号側を削除する
+  resolve_name_and_number(&mut lst, text);
+
+  // 最終的な法令名探索結果
   lst
+}
+
+/// 「内閣は、消防施設強化促進法（昭和二十八年法律第八十七号）第三条の規定に基き、この政令を制定する。」
+/// のような文における，法令名と法令番号の重複を解消するために，法令番号を削除する．
+fn resolve_name_and_number(lst: &mut Vec<FindLawName>, text: &str) {
+  let chars = text.chars().collect::<Vec<char>>();
+  // 削除対象
+  let mut remove_index: Vec<usize> = Vec::new();
+  let mut iter = lst.iter().enumerate().peekable();
+  while let Some((i, law_name)) = iter.next() {
+    if let Some(&(j, next_law_name)) = iter.peek() {
+      let (i2, law1, law2) = if law_name.position.end < next_law_name.position.start {
+        (j, law_name, next_law_name)
+      } else {
+        (i, next_law_name, law_name)
+      };
+      if law1.position.end.abs_diff(law2.position.start) == 1 // 差が1
+        && chars.get(law1.position.end) == Some(&'（') // 間にある文字が全角かっこ
+        && law1.find_law.clone().map(|l| l.get_law_id())
+        == law2.find_law.clone().map(|l| l.get_law_id())
+        && !law1.match_string.ends_with("号") // 前側が号で終わらず
+        && law2.match_string.ends_with("号")
+      // 後ろ側が号で終わる
+      {
+        // 削除対象に登録
+        remove_index.push(i2)
+      }
+    }
+  }
+  for i in remove_index.iter() {
+    lst.remove(*i);
+  }
+}
+
+#[test]
+fn check_resolve_name_and_number() {
+  let s = "陸上交通事業調整法（以下「法」という。）第二条第一項の政令で定める審議会等は、交通政策審議会とする。ただし、法第二条第一項の規定に基づき、国土交通大臣が都市計画法（昭和四十三年法律第百号）第四条第二項に規定する都市計画区域内において調整の区域を決定しようとするときは、当該調整の区域について交通政策審議会及び社会資本整備審議会とする。";
+  let mut v = vec![
+    FindLawName {
+      position: Position { start: 0, end: 25 },
+      match_string: String::from("陸上交通事業調整法"),
+      find_law: Some(Law::new(
+        Date::new_ad(2000, 1, 1),
+        Some(String::from("陸上交通事業調整法")),
+        String::from("313AC0000000071"),
+        String::from("昭和十三年法律第七十一号"),
+        LawType::Act,
+      )),
+    },
+    FindLawName {
+      position: Position { start: 82, end: 93 },
+      match_string: String::from("昭和四十三年法律第百号"),
+      find_law: Some(Law::new(
+        Date::new_ad(2000, 1, 1),
+        Some(String::from("都市計画法")),
+        String::from("343AC0000000100"),
+        String::from("昭和四十三年法律第百号"),
+        LawType::Act,
+      )),
+    },
+    FindLawName {
+      position: Position { start: 76, end: 81 },
+      match_string: String::from("都市計画法"),
+      find_law: Some(Law::new(
+        Date::new_ad(2000, 1, 1),
+        Some(String::from("都市計画法")),
+        String::from("343AC0000000100"),
+        String::from("昭和四十三年法律第百号"),
+        LawType::Act,
+      )),
+    },
+    FindLawName {
+      position: Position { start: 13, end: 14 },
+      match_string: String::from("法"),
+      find_law: Some(Law::new(
+        Date::new_ad(2000, 1, 1),
+        Some(String::from("陸上交通事業調整法")),
+        String::from("313AC0000000071"),
+        String::from("昭和十三年法律第七十一号"),
+        LawType::Act,
+      )),
+    },
+  ];
+
+  resolve_name_and_number(&mut v, s);
+
+  println!("81: {:?}", s.chars().nth(81));
+
+  let v2 = vec![
+    FindLawName {
+      position: Position { start: 0, end: 25 },
+      match_string: String::from("陸上交通事業調整法"),
+      find_law: Some(Law::new(
+        Date::new_ad(2000, 1, 1),
+        Some(String::from("陸上交通事業調整法")),
+        String::from("313AC0000000071"),
+        String::from("昭和十三年法律第七十一号"),
+        LawType::Act,
+      )),
+    },
+    FindLawName {
+      position: Position { start: 76, end: 81 },
+      match_string: String::from("都市計画法"),
+      find_law: Some(Law::new(
+        Date::new_ad(2000, 1, 1),
+        Some(String::from("都市計画法")),
+        String::from("343AC0000000100"),
+        String::from("昭和四十三年法律第百号"),
+        LawType::Act,
+      )),
+    },
+    FindLawName {
+      position: Position { start: 13, end: 14 },
+      match_string: String::from("法"),
+      find_law: Some(Law::new(
+        Date::new_ad(2000, 1, 1),
+        Some(String::from("陸上交通事業調整法")),
+        String::from("313AC0000000071"),
+        String::from("昭和十三年法律第七十一号"),
+        LawType::Act,
+      )),
+    },
+  ];
+  assert_eq!(v, v2)
 }
 
 // 略称の定義を検索
