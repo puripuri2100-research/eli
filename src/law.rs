@@ -672,8 +672,6 @@ fn check_resolve_name_and_number() {
 
   resolve_name_and_number(&mut v, s);
 
-  println!("81: {:?}", s.chars().nth(81));
-
   let v2 = vec![
     FindLawName {
       position: Position { start: 0, end: 25 },
